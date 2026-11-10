@@ -378,6 +378,12 @@ final class FaceUnlockCoordinator {
         let livenessEnabled = forApproval || GlanceSettings.shared.livenessChecksEnabled
         let liveness = LivenessAnalyzer()
         liveness.modeProvider = { GlanceSettings.shared.livenessMode }
+        // The gloss/glare deny cue false-positives on an external webcam facing a lit monitor
+        // (and the approval animation brightens the screen). Drop just that cue for approvals;
+        // blink and device-rectangle detection stay on, so a photo/phone is still rejected.
+        if forApproval {
+            liveness.enabledCuesProvider = { Set(LivenessCue.allCases).subtracting([.glossGlare]) }
+        }
         /// Set by the first consecutive non-match. A gap in face detection or
         /// a valid match clears it, so only a sustained wrong face resolves the scan.
         var wrongFaceStartedAt: ContinuousClock.Instant?
