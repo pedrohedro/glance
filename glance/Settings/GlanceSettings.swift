@@ -104,6 +104,7 @@ final class GlanceSettings {
         static let isFaceUnlockEnabled = "GlanceSettings.isFaceUnlockEnabled"
         static let matchThreshold = "GlanceSettings.matchThreshold"
         static let livenessChecksEnabled = "GlanceSettings.livenessChecksEnabled"
+        static let isApprovalServerEnabled = "GlanceSettings.isApprovalServerEnabled"
         static let livenessMode = "GlanceSettings.livenessMode"
         static let minimumFaceWidth = "GlanceSettings.minimumFaceWidth"
         static let unlockAnimationStyle = "GlanceSettings.unlockAnimationStyle"
@@ -140,6 +141,12 @@ final class GlanceSettings {
     }
     /// Master switch for liveness checking. Off means face recognition
     /// alone decides an unlock — a photo of the enrolled user would pass.
+    /// Opt-in, off by default: lets local processes of this user ask for a face approval (see ApprovalServer).
+    /// No Settings UI yet: `defaults write com.jonathan.glance GlanceSettings.isApprovalServerEnabled -bool true`.
+    var isApprovalServerEnabled: Bool {
+        defaults.bool(forKey: Key.isApprovalServerEnabled)
+    }
+
     var livenessChecksEnabled: Bool {
         didSet { defaults.set(livenessChecksEnabled, forKey: Key.livenessChecksEnabled) }
     }

@@ -316,6 +316,36 @@ final class FaceUnlockCoordinator {
         }
     }
 
+    // MARK: - Approval (unlocked desktop)
+
+    private var isApproving = false
+
+    /// Face check for a local approval request (see ApprovalServer). Never types the password and never runs on the lock
+    /// screen. One at a time; a request arriving mid-scan is denied rather than queued.
+    func approve() async -> Bool {
+        guard !isApproving else { return false }
+        guard !LockMonitor.isScreenActuallyLocked() else { return false }
+        guard SecureCredentialManager.isSessionUnlocked,
+              !FaceEnrollmentStore.shared.activeIdentities.isEmpty else {
+            statusMessage = "Approval denied: no readable enrolled face."
+            return false
+        }
+        isApproving = true
+        defer { isApproving = false }
+
+        await camera.start()
+        defer { camera.stop() }
+        guard camera.errorMessage == nil else { return false }
+
+        let outcome = await observeScanWindow(
+            deadline: Date().addingTimeInterval(scanWindowDuration),
+            requireOverlayScanning: false,
+            forApproval: true
+        )
+        if case .matched = outcome { return true }
+        return false
+    }
+
     private enum ScanOutcome {
         case matched
         case consistentlyWrongFace
@@ -328,8 +358,10 @@ final class FaceUnlockCoordinator {
     /// liveness never fails the scan by staying undecided, it just keeps scanning until `deadline`.
     /// `requireOverlayScanning` bails early once the overlay's own timeout collapses the UI — only applied when there is an
     /// overlay, since headlessly `phase` never becomes `.scanning` at all.
-    private func observeScanWindow(deadline: Date, requireOverlayScanning: Bool) async -> ScanOutcome {
-        let livenessEnabled = GlanceSettings.shared.livenessChecksEnabled
+    /// `forApproval` is the unlocked-desktop path (`approve(reason:)`): liveness is forced on, the lock-screen guard is skipped,
+    /// and a match types nothing — the caller only gets the outcome.
+    private func observeScanWindow(deadline: Date, requireOverlayScanning: Bool, forApproval: Bool = false) async -> ScanOutcome {
+        let livenessEnabled = forApproval || GlanceSettings.shared.livenessChecksEnabled
         let liveness = LivenessAnalyzer()
         liveness.modeProvider = { GlanceSettings.shared.livenessMode }
         /// Set by the first consecutive non-match. A gap in face detection or
@@ -347,7 +379,7 @@ final class FaceUnlockCoordinator {
 
         while Date() < deadline, !Task.isCancelled,
               !requireOverlayScanning || NotchOverlayController.shared.phase == .scanning {
-            guard LockMonitor.isScreenActuallyLocked() else { return .noResolution }
+            guard forApproval != LockMonitor.isScreenActuallyLocked() else { return .noResolution }
 
             guard let frame = camera.currentFrame, frame.id != lastProcessedFrameID else {
                 // 20ms keeps the liveness window's sample count high while staying close to the camera's native ~33ms cadence.
@@ -412,7 +444,9 @@ final class FaceUnlockCoordinator {
                     ? (confirmingCue.map { "live via \($0.title)" } ?? "liveness clear")
                     : "liveness off"
                 lastOutcome = "Matched \(readyMatch.identity.name) at \(String(format: "%.3f", readyMatch.centroidSimilarity)), \(livenessNote)."
-                await pocController.injectStoredPassword(requireAuthoritativeLock: true)
+                if !forApproval {
+                    await pocController.injectStoredPassword(requireAuthoritativeLock: true)
+                }
                 return .matched
             }
 

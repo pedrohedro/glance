@@ -73,6 +73,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// get replaced by a Recents tile the moment the Dock icon was later hidden/shown.
     func applicationWillFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
+
+        if GlanceSettings.shared.isApprovalServerEnabled {
+            ApprovalServer.shared.start(coordinator: environment.faceUnlockCoordinator)
+        }
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
