@@ -56,10 +56,19 @@ final class ApprovalServer: @unchecked Sendable {
         Thread.detachNewThread { [weak coordinator] in
             while true {
                 let client = accept(fd, nil, nil)
-                guard client >= 0 else { continue }
+                // accept fails for good once stop() closes the listening socket.
+                guard client >= 0 else { if errno == EINTR { continue } else { return } }
                 Self.handle(client, coordinator: coordinator)
             }
         }
+    }
+
+    @MainActor
+    func stop() {
+        guard listenFD >= 0 else { return }
+        close(listenFD)
+        listenFD = -1
+        unlink(Self.socketURL.path)
     }
 
     /// One request at a time, serially — a second prompt stacked on the first would be a confusion attack surface.

@@ -142,9 +142,8 @@ final class GlanceSettings {
     /// Master switch for liveness checking. Off means face recognition
     /// alone decides an unlock — a photo of the enrolled user would pass.
     /// Opt-in, off by default: lets local processes of this user ask for a face approval (see ApprovalServer).
-    /// No Settings UI yet: `defaults write dev.pedrohedro.glance GlanceSettings.isApprovalServerEnabled -bool true`.
     var isApprovalServerEnabled: Bool {
-        defaults.bool(forKey: Key.isApprovalServerEnabled)
+        didSet { defaults.set(isApprovalServerEnabled, forKey: Key.isApprovalServerEnabled) }
     }
 
     var livenessChecksEnabled: Bool {
@@ -296,6 +295,7 @@ final class GlanceSettings {
         // Matches `MatchConfidenceLevel.standard` — see RecognitionSettingsPage.swift.
         matchThreshold = defaults.object(forKey: Key.matchThreshold) as? Float ?? 0.66
         livenessChecksEnabled = defaults.object(forKey: Key.livenessChecksEnabled) as? Bool ?? true
+        isApprovalServerEnabled = defaults.bool(forKey: Key.isApprovalServerEnabled)
         // Light by default — Heavy requires a blink/pose/depth signal a
         // still, non-blinking user may never produce, while Light still
         // catches the main attack (a photo on a phone screen).

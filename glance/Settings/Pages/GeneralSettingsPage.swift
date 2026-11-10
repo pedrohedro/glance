@@ -100,6 +100,20 @@ struct GeneralSettingsPage: View {
                     GlanceToggle(isOn: $coordinator.isEnabled)
                 }
                 SettingsGroupDivider()
+                SettingsRowContent(title: "Approve requests with your face") {
+                    GlanceToggle(isOn: Binding(
+                        get: { settings.isApprovalServerEnabled },
+                        set: { newValue in
+                            settings.isApprovalServerEnabled = newValue
+                            if newValue {
+                                ApprovalServer.shared.start(coordinator: coordinator)
+                            } else {
+                                ApprovalServer.shared.stop()
+                            }
+                        }
+                    ))
+                }
+                SettingsGroupDivider()
                 UnlockTriggerPicker(selection: $settings.unlockTriggers, isEnabled: coordinator.isEnabled)
                 SettingsGroupDivider()
                 displayPicker()
