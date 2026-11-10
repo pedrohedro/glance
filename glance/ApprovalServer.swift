@@ -77,7 +77,8 @@ final class ApprovalServer: @unchecked Sendable {
 
         var uid: uid_t = 0
         var gid: gid_t = 0
-        guard getpeereid(client, &uid, &gid) == 0, uid == getuid() else { return }
+        // Root is allowed so a PAM module (running inside setuid sudo) can ask; root needs nothing from us anyway.
+        guard getpeereid(client, &uid, &gid) == 0, uid == getuid() || uid == 0 else { return }
 
         // Never block the accept loop on a silent client.
         var timeout = timeval(tv_sec: 5, tv_usec: 0)
