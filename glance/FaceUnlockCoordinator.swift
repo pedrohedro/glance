@@ -343,11 +343,15 @@ final class FaceUnlockCoordinator {
         defer { camera.stop() }
         if let error = camera.errorMessage { return "camera: \(error)" }
 
+        // Same Face-ID-style notch animation as the lock screen, instead of a text alert.
+        NotchOverlayController.shared.present()
         let outcome = await observeScanWindow(
             deadline: Date().addingTimeInterval(scanWindowDuration),
             requireOverlayScanning: false,
             forApproval: true
         )
+        let matched: Bool = { if case .matched = outcome { return true }; return false }()
+        NotchOverlayController.shared.finish(success: matched)
         switch outcome {
         case .matched: return nil
         case .consistentlyWrongFace: return "face not recognized"

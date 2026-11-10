@@ -93,7 +93,9 @@ final class ApprovalServer: @unchecked Sendable {
         nonisolated(unsafe) var denial: String? = "declined"
         Task { @MainActor in
             defer { done.signal() }
-            guard let coordinator, confirm(reason: reason) else { return }
+            // No text alert: the admin prompt is already the consent. Go straight to the
+            // lock-screen-style face animation, which approve() drives via NotchOverlayController.
+            guard let coordinator else { return }
             denial = await coordinator.approve()
         }
         done.wait()
