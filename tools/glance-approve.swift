@@ -17,7 +17,7 @@ guard !reason.isEmpty else {
 }
 
 let path = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-    .appendingPathComponent("glance/approve.sock").path
+    .appendingPathComponent("glance-fork/approve.sock").path
 
 let fd = socket(AF_UNIX, SOCK_STREAM, 0)
 var addr = sockaddr_un()

@@ -19,7 +19,7 @@ final class ApprovalServer: @unchecked Sendable {
 
     static var socketURL: URL {
         FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("glance", isDirectory: true)
+            .appendingPathComponent("glance-fork", isDirectory: true)
             .appendingPathComponent("approve.sock")
     }
 
