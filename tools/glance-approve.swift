@@ -34,6 +34,9 @@ guard connected == 0 else {
 }
 
 _ = (reason + "\n").withCString { write(fd, $0, strlen($0)) }
-var buffer = [UInt8](repeating: 0, count: 16)
-let count = read(fd, &buffer, buffer.count)
-exit(count >= 2 && buffer[0] == UInt8(ascii: "O") && buffer[1] == UInt8(ascii: "K") ? 0 : 1)
+var buffer = [UInt8](repeating: 0, count: 256)
+let count = max(0, read(fd, &buffer, buffer.count))
+let reply = String(decoding: buffer[0..<count], as: UTF8.self)
+if reply.hasPrefix("OK") { exit(0) }
+FileHandle.standardError.write(Data("glance-approve: \(reply.isEmpty ? "no reply" : reply.trimmingCharacters(in: .newlines))\n".utf8))
+exit(1)

@@ -322,28 +322,38 @@ final class FaceUnlockCoordinator {
 
     /// Face check for a local approval request (see ApprovalServer). Never types the password and never runs on the lock
     /// screen. One at a time; a request arriving mid-scan is denied rather than queued.
-    func approve() async -> Bool {
-        guard !isApproving else { return false }
-        guard !LockMonitor.isScreenActuallyLocked() else { return false }
-        guard SecureCredentialManager.isSessionUnlocked,
-              !FaceEnrollmentStore.shared.activeIdentities.isEmpty else {
-            statusMessage = "Approval denied: no readable enrolled face."
-            return false
-        }
+    /// Returns nil when approved, otherwise a short denial reason (sent back to the requester for diagnosis).
+    func approve() async -> String? {
+        guard !isApproving else { return "another approval is in progress" }
+        guard !LockMonitor.isScreenActuallyLocked() else { return "screen is locked" }
         isApproving = true
         defer { isApproving = false }
 
+        // The session key is only cached per app launch; ask for it here rather than failing until Settings is opened.
+        if !SecureCredentialManager.isSessionUnlocked {
+            _ = await Task.detached {
+                try? SecureCredentialManager.unlockSession(reason: "Unlock Glance to read your enrolled face")
+            }.value
+            FaceEnrollmentStore.shared.reloadIfUnlocked()
+        }
+        guard SecureCredentialManager.isSessionUnlocked else { return "session locked" }
+        guard !FaceEnrollmentStore.shared.activeIdentities.isEmpty else { return "no enrolled face" }
+
         await camera.start()
         defer { camera.stop() }
-        guard camera.errorMessage == nil else { return false }
+        if let error = camera.errorMessage { return "camera: \(error)" }
 
         let outcome = await observeScanWindow(
             deadline: Date().addingTimeInterval(scanWindowDuration),
             requireOverlayScanning: false,
             forApproval: true
         )
-        if case .matched = outcome { return true }
-        return false
+        switch outcome {
+        case .matched: return nil
+        case .consistentlyWrongFace: return "face not recognized"
+        case .spoofSuspected: return "liveness denied: \(lastOutcome ?? "spoof suspected")"
+        case .noResolution: return "no live match within \(Int(scanWindowDuration))s"
+        }
     }
 
     private enum ScanOutcome {

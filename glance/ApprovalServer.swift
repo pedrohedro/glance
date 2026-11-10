@@ -80,15 +80,15 @@ final class ApprovalServer: @unchecked Sendable {
         let reason = sanitize(String(decoding: buffer[0..<count], as: UTF8.self))
 
         let done = DispatchSemaphore(value: 0)
-        nonisolated(unsafe) var approved = false
+        nonisolated(unsafe) var denial: String? = "declined"
         Task { @MainActor in
             defer { done.signal() }
             guard let coordinator, confirm(reason: reason) else { return }
-            approved = await coordinator.approve()
+            denial = await coordinator.approve()
         }
         done.wait()
 
-        let reply = approved ? "OK\n" : "DENY\n"
+        let reply = denial.map { "DENY \($0)\n" } ?? "OK\n"
         _ = reply.withCString { write(client, $0, strlen($0)) }
     }
 
